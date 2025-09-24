@@ -1,9 +1,13 @@
 import { Paperclip } from 'lucide-react';
 import React from 'react';
 import { Mic } from 'lucide-react';
+import AiMultiModels from './AiMultiModels';
 
 function ChatinputBox() {
   return (
+    <div className='relative min-h-screen'>
+      {/* Other content of the page would go here */ }
+      <div className="pb-20"> <AiMultiModels/> </div> {/* Chat input box fixed at the bottom */ }
     <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4 z-50">
       <div className="flex bg-white dark:bg-gray-800 shadow-lg rounded-md p-2">
         <input
@@ -22,8 +26,10 @@ function ChatinputBox() {
             <Mic className="w-5 h-5 text-gray-600 dark:text-gray-300" />
           </button>
         </div>
+
       
       </div>
+    </div>
     </div>
   );
 }
