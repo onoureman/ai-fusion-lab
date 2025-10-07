@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/app/_components/AppSidebar";
+import { ClerkProvider } from "@clerk/nextjs";
 
 import Provider from "./provider";
 
@@ -24,19 +25,20 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        suppressHydrationWarning={true}
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <SidebarProvider>
-          <Provider>
-            <AppSidebar />
+    <ClerkProvider>
+      <html lang="en">
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
+          
+            <Provider>
+              <AppSidebar />
             {children}
           </Provider>
-        </SidebarProvider>
+       
       </body>
     </html>
+  </ClerkProvider>
   );
 }
 
