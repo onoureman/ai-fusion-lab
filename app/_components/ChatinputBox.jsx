@@ -1,35 +1,140 @@
 import { Paperclip } from 'lucide-react';
-import React from 'react';
-import { Mic } from 'lucide-react';
+import React, { useEffect, useContext } from 'react';
+import { Mic, Send } from 'lucide-react';
 import AiMultiModels from './AiMultiModels';
+import { AiSelectedModelContext } from '@/context/AiSelectedModelContext';
+import axios from 'axios';
 
 function ChatinputBox() {
+  // initialize to empty string to avoid undefined / .trim() errors
+  const [userInput, setUserInput] = React.useState("");
+
+  const { aiSelectedModels, setAiSelectedModels, messages, setMessages } = useContext(AiSelectedModelContext);
+
+  const handleSend = async () => {
+    // guard against empty input
+    if (!userInput || !userInput.trim()) return;
+
+    const currentInput = userInput.trim(); // capture and trim
+    setUserInput("");
+
+    // ensure we have selected models
+    const modelEntries = Object.entries(aiSelectedModels || {});
+    if (modelEntries.length === 0) {
+      // optionally surface a UI message if no model selected
+      setMessages((prev) => ({
+        ...prev,
+        ui: [...(prev.ui ?? []), { role: "assistant", content: "⚠️ No AI model selected." }],
+      }));
+      return;
+    }
+
+    // 1️⃣ Add user message to all enabled models
+    setMessages((prev) => {
+      const updated = { ...prev };
+      Object.keys(aiSelectedModels).forEach((modelKey) => {
+        updated[modelKey] = [
+          ...(updated[modelKey] ?? []),
+          { role: "user", content: currentInput },
+        ];
+      });
+      return updated;
+    });
+
+    // 2️⃣ Fetch response from each enabled model
+    modelEntries.forEach(async ([parentModel, modelInfo]) => {
+      if (!modelInfo.modelId || aiSelectedModels[parentModel]?.enable === false) return;
+
+      // Add loading placeholder before API call
+      setMessages((prev) => ({
+        ...prev,
+        [parentModel]: [
+          ...(prev[parentModel] ?? []),
+          { role: "assistant", content: "Loading...", model: parentModel, loading: true },
+        ],
+      }));
+
+      try {
+        const result = await axios.post("/api/ai-multi-model", {
+          model: modelInfo.modelId,
+          msg: [{ role: "user", content: currentInput }],
+          parentModel,
+        });
+
+        const { aiResponse, model } = result.data;
+        // if server returned nothing, surface a clearer error
+        if (!aiResponse) {
+          throw new Error(result.data?.error || "No AI model reply to msg");
+        }
+
+        // 3️⃣ Add AI response to that model’s messages
+        setMessages((prev) => {
+          const updated = [...(prev[parentModel] ?? [])];
+          const loadingIndex = updated.findIndex((m) => m.loading);
+
+          if (loadingIndex !== -1) {
+            updated[loadingIndex] = {
+              role: "assistant",
+              content: aiResponse,
+              model,
+              loading: false,
+            };
+          } else {
+            // fallback if no loading msg found
+            updated.push({
+              role: "assistant",
+              content: aiResponse,
+              model,
+              loading: false,
+            });
+          }
+
+          return { ...prev, [parentModel]: updated };
+        });
+      } catch (err) {
+        console.error("AI response error:", err?.message ?? err);
+        setMessages((prev) => ({
+          ...prev,
+          [parentModel]: [
+            ...(prev[parentModel] ?? []),
+            { role: "assistant", content: `⚠️ Error: ${err?.message ?? "fetching response"}` },
+          ],
+        }));
+      }
+    });
+  };
+
+  useEffect(() => {
+    console.log(messages);
+  }, [messages]);
+  
   return (
     <div className='relative min-h-screen'>
       {/* Other content of the page would go here */ }
       <div className="pb-20"> <AiMultiModels/> </div> {/* Chat input box fixed at the bottom */ }
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4 z-50">
-      <div className="flex bg-white dark:bg-gray-800 shadow-lg rounded-md p-2">
-        <input
-          type="text"
-          className="flex-grow p-2 border border-gray-300 dark:border-gray-700 rounded-l-md bg-white dark:bg-gray-900 text-black dark:text-white focus:outline-none"
-          placeholder="Type your message..."
-        />
-        <button className="bg-blue-500 text-white px-4 py-2 rounded-r-md hover:bg-blue-600">
-          Send
-        </button>
-        <div className="ml-2 flex items-center space-x-2">
-          <button className="p-2 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600">
-            <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-          </button>
-          <button className="p-2 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600">
-            <Mic className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-          </button>
+      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4 z-50">
+        <div className="flex bg-white dark:bg-gray-800 shadow-lg rounded-md p-2">
+          <input
+            type="text"
+            value={userInput}
+            className="flex-grow p-2 border border-gray-300 dark:border-gray-700 rounded-l-md bg-white dark:bg-gray-900 text-black dark:text-white focus:outline-none"
+            placeholder="Type your message..."
+            onChange={(event)=> setUserInput(event.target.value)}
+          />
+          
+          <div className="ml-2 flex items-center space-x-2">
+            <button className="p-2 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600">
+              <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            </button>
+            <button className="p-2 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600">
+              <Mic className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            </button>
+            <button onClick={handleSend} className="p-2 bg-gray-200 dark:bg-gray-700 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600">
+              <Send />
+            </button>
+          </div>
         </div>
-
-      
       </div>
-    </div>
     </div>
   );
 }

@@ -15,12 +15,28 @@ function Provider({ children, ...props }) {
   const { user } = useUser();
   const [aiSelectedModels, setAiSelectedModels] = useState(DefaultModel);
   const [userDetail, setUserDetail] = useState();
+  const [messages, setMessages] = useState({});
 
   useEffect(() => {
     if (user) {
       CreateNewUser();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (aiSelectedModels) {
+      updateAIModelSelectionPref();
+    }
+  }, [aiSelectedModels]);
+
+  const updateAIModelSelectionPref = async() => {
+    const docRef = doc(db, 'users', user?.primaryEmailAddress?.emailAddress || user?.id);
+    const newModel = { ...aiSelectedModels };
+    await updateDoc(docRef, {
+      selectedModelPref: aiSelectedModels
+    })
+   
+  }
 
   const CreateNewUser = async () => {
     const userKey = user?.primaryEmailAddress?.emailAddress || user?.primaryEmailAddress?.emailAddresses || user?.id;
@@ -29,7 +45,7 @@ function Provider({ children, ...props }) {
     if (userSnap.exists()) {
       console.log('user already exist');
       const userInfo = userSnap.data();
-      setAiSelectedModels(userInfo?.selectedModelPref || DefaultModel);
+      setAiSelectedModels(userInfo?.selectedModelPref ?? DefaultModel);
       setUserDetail(userInfo);
       return;
     } else {
@@ -55,7 +71,7 @@ function Provider({ children, ...props }) {
       disableTransitionOnChange
     >
       <UserDetailContext.Provider value={{ userDetail, setUserDetail }}>
-        <AiSelectedModelContext.Provider value={{ aiSelectedModels, setAiSelectedModels }}>
+        <AiSelectedModelContext.Provider value={{ aiSelectedModels, setAiSelectedModels, messages, setMessages }}>
           <SidebarProvider>
             <AppSidebar />
             <div className='w-full'>
