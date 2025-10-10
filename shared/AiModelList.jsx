@@ -32,7 +32,7 @@ export default [
     enable: true,
     subModel: [
       { name: "DeepSeek R1", premium: false, id: "DeepSeek-R1" },
-      { name: "DeepSeek R1 0528", premium: true, id: "DeepSeek-R1-0528" },
+      { name: "DeepSeek R1 0528", premium: false, id: "DeepSeek-R1-0528" },
     ],
   },
   {
