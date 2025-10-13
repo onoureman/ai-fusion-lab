@@ -18,6 +18,7 @@ import { db } from '@/config/FirebaseConfig';
 import { Loader } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useSearchParams } from 'next/navigation.js';
 
 
 
@@ -26,6 +27,7 @@ function AiMultiModels() {
   const [AiModelLists, setAiModelLists] = useState(AiModelList);
   const { aiSelectedModels, setAiSelectedModels, messages, setMessages } = useContext(AiSelectedModelContext);
  
+
 
   const onToggleChange = (model, value) => {
     setAiModelLists((prev) =>
@@ -150,9 +152,9 @@ function AiMultiModels() {
 
                     <div className="flex items-center space-x-2">
                       {m.content == 'loading' && <><Loader className="animate-spin w-5 h-5" /></>}
-                      {m.content != 'loading' && 
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-full">
-                          {m.content}
+                      {m?.content != 'loading' && 
+                       m?.content && <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-full">
+                          {m?.content}
                         </ReactMarkdown>
                       }
                     </div>
@@ -160,7 +162,7 @@ function AiMultiModels() {
                   <div className="flex items-center space-x-2">
                     {m.content == 'loading' && <><Loader className="animate-spin w-5 h-5" /></>}
                     {m.content != 'loading' && 
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-full">
+                     m?.content&& <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-full">
                         {m.content}
                       </ReactMarkdown>
                     }

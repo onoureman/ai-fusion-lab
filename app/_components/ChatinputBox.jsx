@@ -4,12 +4,42 @@ import { Mic, Send } from 'lucide-react';
 import AiMultiModels from './AiMultiModels';
 import { AiSelectedModelContext } from '@/context/AiSelectedModelContext';
 import axios from 'axios';
+import { useUser } from '@clerk/nextjs';
+import { v4 as uuidv4 } from 'uuid';
+import { useSearchParams } from 'next/navigation.js';
+import { useState } from 'react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '@/config/FirebaseConfig';
 
 function ChatinputBox() {
   // initialize to empty string to avoid undefined / .trim() errors
   const [userInput, setUserInput] = React.useState("");
 
+  const {user}=useUser();
+
   const { aiSelectedModels, setAiSelectedModels, messages, setMessages } = useContext(AiSelectedModelContext);
+
+  const [chatId, setChatId] = useState();
+  const params = useSearchParams();
+
+ 
+
+
+
+  useEffect(() => {
+
+  const chatId_ = params.get('chatId');
+  
+  if (chatId_) {
+    
+      setChatId(chatId_);
+      GetMessages(chatId_);
+    } else {
+    setMessages([]);
+    setChatId(uuidv4());
+  }
+}, [params])
+
 
   const handleSend = async () => {
     // guard against empty input
@@ -105,9 +135,29 @@ function ChatinputBox() {
   };
 
   useEffect(() => {
-    console.log(messages);
-  }, [messages]);
-  
+    if (messages) { SaveMessages(); }
+  }, [messages])
+
+  const SaveMessages=async()=>{
+    const docRef = doc(db, "chatHistory", chatId);
+    await setDoc(docRef, {
+      chatId: chatId,
+      userEmail: user?.primaryEmailAddress?.emailAddress,
+      messages: messages,
+      lastUpdated: Date.now()
+    })
+
+  }
+
+  const GetMessages=async()=>{
+    
+    const docRef = doc(db, "chatHistory", chatId);
+    const docSnap = await getDoc(docRef);
+    console.log(docSnap.data());
+    const docData = docSnap.data();
+    setMessages(docData.messages)
+  }
+
   return (
     <div className='relative min-h-screen'>
       {/* Other content of the page would go here */ }
