@@ -10,6 +10,7 @@ import { useSearchParams } from 'next/navigation.js';
 import { useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/FirebaseConfig';
+import { toast } from 'sonner';
 
 function ChatinputBox() {
   // initialize to empty string to avoid undefined / .trim() errors
@@ -43,21 +44,21 @@ function ChatinputBox() {
 
   const handleSend = async () => {
     // guard against empty input
-    if (!userInput || !userInput.trim()) return;
+    if (!userInput.trim()) return;
 
-    const currentInput = userInput.trim(); // capture and trim
-    setUserInput("");
-
-    // ensure we have selected models
-    const modelEntries = Object.entries(aiSelectedModels || {});
-    if (modelEntries.length === 0) {
-      // optionally surface a UI message if no model selected
-      setMessages((prev) => ({
-        ...prev,
-        ui: [...(prev.ui ?? []), { role: "assistant", content: "⚠️ No AI model selected." }],
-      }));
-      return;
-    }
+    //check token limit
+      const result = await axios.POST("/api/user-remaining-msgs",{
+        token:1
+      });
+     
+      const remainingToken=result?.data?.remainingToken;
+      if(remainingToken<=0)
+      {
+        console.log("Limit Exceeded");
+        toast.error('Maximum Daily Limit Exceed');
+        return;
+      }
+   
 
     // 1️⃣ Add user message to all enabled models
     setMessages((prev) => {

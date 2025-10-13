@@ -3,6 +3,7 @@ import "./globals.css";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/app/_components/AppSidebar";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Toaster } from "sonner";
 
 import Provider from "./provider";
 
@@ -31,9 +32,9 @@ export default function RootLayout({ children }) {
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
           
-            <Provider>
-              <AppSidebar />
+          <Provider>
             {children}
+            <Toaster />
           </Provider>
        
       </body>
