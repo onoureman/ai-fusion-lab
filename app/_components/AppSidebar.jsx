@@ -7,7 +7,7 @@ import {
   SidebarGroup,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-import { SignInButton, useUser } from "@clerk/nextjs";
+import { SignInButton, useAuth, useUser } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { User2, Zap } from "lucide-react";
 import UsageCreditProgress from "./UsageCreditProgress";
@@ -20,12 +20,16 @@ import { Button } from "@/components/ui/button";
 import { AiSelectedModelContext } from "@/context/AiSelectedModelContext";
 
 
+
 export function AppSidebar() {
   const { theme, setTheme } = useTheme();
   const { user } = useUser();
   const [chatHistory, setChatHistory] = useState([]);
   const [freeMsgCount, setFreeMsgCount] = useState(0);
   const { aiSelectedModels, setAiSelectedModels, messages, setMessages } = useContext(AiSelectedModelContext);
+
+  //const {has}=useAuth();
+  const paidUser=has({plan:'unlimted_plan'});
 
   useEffect(() => {
     if (user) {
@@ -134,27 +138,33 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
-        <div className="p-3 mb-10">
-          {!user ? (
-            <SignInButton mode="modal">
-              <button className="w-full rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300">
-                Sign In
-              </button>
-            </SignInButton>
-          ) : (
-            <div>
-              <UsageCreditProgress remainingToken={freeMsgCount} />
-              <Button className="w-full mb-3">
-                <Zap /> Upgrade Plan
-              </Button>
-              <Button className="w-full mb-3">
-                <User2 /> <h2>Settings</h2>
-              </Button>
+          <SidebarFooter>
+            <div className="p-3 mb-10">
+              {!user ? (
+                <SignInButton mode="modal">
+                  <button className="w-full rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300">
+                    Sign In
+                  </button>
+                </SignInButton>
+              ) : (
+                <div>
+                  {!has({plan:'unlimted_plan'}) && <UsageCreditProgress remainingToken={freeMsgCount} />}
+                  <div>
+                    <PricingModal>
+                      <Button className="w-full mb-3">
+                        <Zap /> Upgrade Plan
+                      </Button>
+                    </PricingModal>
+                  </div>
+                  <Button className="w-full mb-3">
+                    <User2 /> <h2>Settings</h2>
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </SidebarFooter>
-    </Sidebar>
-  );
-}
+          </SidebarFooter>
+        </Sidebar>
+      );
+    }
+  
+        

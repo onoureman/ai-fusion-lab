@@ -4,7 +4,7 @@ import { Mic, Send } from 'lucide-react';
 import AiMultiModels from './AiMultiModels';
 import { AiSelectedModelContext } from '@/context/AiSelectedModelContext';
 import axios from 'axios';
-import { useUser } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { v4 as uuidv4 } from 'uuid';
 import { useSearchParams } from 'next/navigation.js';
 import { useState } from 'react';
@@ -12,9 +12,9 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/FirebaseConfig';
 import { toast } from 'sonner';
 
-function ChatinputBox() {
+function ChatInputBox() {
   // initialize to empty string to avoid undefined / .trim() errors
-  const [userInput, setUserInput] = React.useState("");
+  const [userInput, setUserInput] = useState();
 
   const {user}=useUser();
 
@@ -22,6 +22,9 @@ function ChatinputBox() {
 
   const [chatId, setChatId] = useState();
   const params = useSearchParams();
+  const [loading,setLoading]= useState(false);
+  const {has}=useAuth();
+  //const paidUser=has({plan:'unlimted_plan'});
 
  
 
@@ -45,7 +48,11 @@ function ChatinputBox() {
   const handleSend = async () => {
     // guard against empty input
     if (!userInput.trim()) return;
+    setLoading(true);
+    
+    //call only if user free
 
+    if (!has({plan:'unlimted_plan'})){
     //check token limit
       const result = await axios.POST("/api/user-remaining-msgs",{
         token:1
@@ -58,7 +65,7 @@ function ChatinputBox() {
         toast.error('Maximum Daily Limit Exceed');
         return;
       }
-   
+    }
 
     // 1️⃣ Add user message to all enabled models
     setMessages((prev) => {

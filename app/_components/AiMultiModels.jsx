@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { MessageSquare } from 'lucide-react';
 import { FaLock } from 'react-icons/fa'; 
 import { SelectGroup, SelectLabel } from '@radix-ui/react-select';
-import { useUser } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { AiSelectedModelContext } from '@/context/AiSelectedModelContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/FirebaseConfig';
@@ -27,7 +27,7 @@ function AiMultiModels() {
   const [AiModelLists, setAiModelLists] = useState(AiModelList);
   const { aiSelectedModels, setAiSelectedModels, messages, setMessages } = useContext(AiSelectedModelContext);
  
-
+  const {has}=useAuth();
 
   const onToggleChange = (model, value) => {
     setAiModelLists((prev) =>
@@ -86,7 +86,7 @@ function AiMultiModels() {
                 height={24}
                 className='mr-2'
               />
-              {model.enabled && (
+              {!has({plan:'unlimted_plan'}) && model.enabled && (
                 <Select defaultValue={aiSelectedModels?.[model.model]?.modelId ?? ''} onValueChange={(value) => onSelectValue(model.model, value)} >
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder={aiSelectedModels?.[model.model]?.modelId ?? ''} />
@@ -116,6 +116,7 @@ function AiMultiModels() {
               {model.enabled ? (
                 <Switch
                   checked={model.enabled}
+                  disabled={!has({plan:'unlimted_plan'}) && model.premium}
                   onCheckedChange={(checked) =>
                     onToggleChange(model.model, checked)
                   }
@@ -126,7 +127,7 @@ function AiMultiModels() {
             </div>
           </div>
 
-          {model.premium && model.enabled && (
+          {!has({plan:'unlimted_plan'}) && model.premium && model.enabled && (
             
               <div className='items-center justify-center text-center text-sm text-gray-500 h-full'>
                 <button className='m-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50'>
@@ -136,12 +137,12 @@ function AiMultiModels() {
               </div>
 
           )}
-          {!model.premium && model.enabled && (
+          {model.enable && aiSelectedModels[model.model]?.enable && (!model.premium || has({plan:'unlimted_plan'})) &&
           
           <div className='flex-1 overflow-y-auto'>
             {/* Chat messages for this model */}
             <div className='flex-1 p-4 space-y-2'>
-              {messages?.[model.model]?.map((m,i) => (
+              {messages[model.model]?.map((m,i) => (
                 <div
                   key={i}
                   className={`p-2 rounded-md ${m.role === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}
