@@ -1,5 +1,5 @@
 import { Paperclip } from 'lucide-react';
-import React, { useEffect, useContext } from 'react';
+import React, { useEffect, useContext, useState } from 'react';
 import { Mic, Send } from 'lucide-react';
 import AiMultiModels from './AiMultiModels';
 import { AiSelectedModelContext } from '@/context/AiSelectedModelContext';
@@ -7,70 +7,84 @@ import axios from 'axios';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { v4 as uuidv4 } from 'uuid';
 import { useSearchParams } from 'next/navigation.js';
-import { useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/FirebaseConfig';
 import { toast } from 'sonner';
 
 function ChatInputBox() {
   // initialize to empty string to avoid undefined / .trim() errors
-  const [userInput, setUserInput] = useState();
-
-  const {user}=useUser();
-
+  const [userInput, setUserInput] = useState("");
+  const { user } = useUser();
   const { aiSelectedModels, setAiSelectedModels, messages, setMessages } = useContext(AiSelectedModelContext);
 
   const [chatId, setChatId] = useState();
   const params = useSearchParams();
-  const [loading,setLoading]= useState(false);
-  const {has}=useAuth();
-  //const paidUser=has({plan:'unlimted_plan'});
-
- 
-
-
+  const [loading, setLoading] = useState(false);
+  const { has } = useAuth();
 
   useEffect(() => {
+    const chatId_ = params.get('chatId');
 
-  const chatId_ = params.get('chatId');
-  
-  if (chatId_) {
-    
+    if (chatId_) {
       setChatId(chatId_);
       GetMessages(chatId_);
     } else {
-    setMessages([]);
-    setChatId(uuidv4());
-  }
-}, [params])
-
+      // messages should be an object keyed by model names
+      setMessages({});
+      setChatId(uuidv4());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
 
   const handleSend = async () => {
     // guard against empty input
-    if (!userInput.trim()) return;
+    if (!userInput || !userInput.trim()) return;
     setLoading(true);
-    
-    //call only if user free
 
+    // capture and clear input
+    const currentInput = userInput.trim();
+    setUserInput("");
+
+    // call only if user free
     if (!has({plan:'unlimted_plan'})){
-    //check token limit
-      const result = await axios.POST("/api/user-remaining-msgs",{
-        token:1
-      });
-     
-      const remainingToken=result?.data?.remainingToken;
-      if(remainingToken<=0)
-      {
+      // check token limit — try GET first, fallback to POST, treat 404 as "no limit check"
+      let remainingToken = Infinity;
+      try {
+        const res = await axios.get("/api/user-remaining-msgs", { params: { token: 1 } });
+        remainingToken = res?.data?.remainingToken ?? remainingToken;
+      } catch (errGet) {
+        if (errGet?.response?.status === 404) {
+          console.warn("/api/user-remaining-msgs not found (GET) — skipping limit check. Create the API route or switch to POST.");
+        } else {
+          // try POST as a fallback
+          try {
+            const res2 = await axios.post("/api/user-remaining-msgs", { token: 1 });
+            remainingToken = res2?.data?.remainingToken ?? remainingToken;
+          } catch (errPost) {
+            if (errPost?.response?.status === 404) {
+              console.warn("/api/user-remaining-msgs not found (POST) — skipping limit check.");
+            } else {
+              console.error("Failed checking remaining tokens:", errPost);
+            }
+          }
+        }
+      }
+
+      if (Number.isFinite(remainingToken) && remainingToken <= 0) {
         console.log("Limit Exceeded");
         toast.error('Maximum Daily Limit Exceed');
+        setLoading(false);
         return;
       }
     }
 
+    // prepare model entries
+    const modelEntries = Object.entries(aiSelectedModels || {});
+
     // 1️⃣ Add user message to all enabled models
     setMessages((prev) => {
       const updated = { ...prev };
-      Object.keys(aiSelectedModels).forEach((modelKey) => {
+      Object.keys(aiSelectedModels || {}).forEach((modelKey) => {
         updated[modelKey] = [
           ...(updated[modelKey] ?? []),
           { role: "user", content: currentInput },
@@ -81,7 +95,7 @@ function ChatInputBox() {
 
     // 2️⃣ Fetch response from each enabled model
     modelEntries.forEach(async ([parentModel, modelInfo]) => {
-      if (!modelInfo.modelId || aiSelectedModels[parentModel]?.enable === false) return;
+      if (!modelInfo?.modelId || aiSelectedModels[parentModel]?.enable === false) return;
 
       // Add loading placeholder before API call
       setMessages((prev) => ({
@@ -100,12 +114,11 @@ function ChatInputBox() {
         });
 
         const { aiResponse, model } = result.data;
-        // if server returned nothing, surface a clearer error
         if (!aiResponse) {
           throw new Error(result.data?.error || "No AI model reply to msg");
         }
 
-        // 3️⃣ Add AI response to that model’s messages
+        // replace loading with response
         setMessages((prev) => {
           const updated = [...(prev[parentModel] ?? [])];
           const loadingIndex = updated.findIndex((m) => m.loading);
@@ -118,7 +131,6 @@ function ChatInputBox() {
               loading: false,
             };
           } else {
-            // fallback if no loading msg found
             updated.push({
               role: "assistant",
               content: aiResponse,
@@ -144,27 +156,51 @@ function ChatInputBox() {
 
   useEffect(() => {
     if (messages) { SaveMessages(); }
-  }, [messages])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
 
-  const SaveMessages=async()=>{
-    const docRef = doc(db, "chatHistory", chatId);
-    await setDoc(docRef, {
-      chatId: chatId,
-      userEmail: user?.primaryEmailAddress?.emailAddress,
-      messages: messages,
-      lastUpdated: Date.now()
-    })
+  const SaveMessages = async () => {
+    if (!chatId) {
+      console.warn("SaveMessages skipped: chatId is not set");
+      return;
+    }
 
-  }
+    try {
+      const docRef = doc(db, "chatHistory", chatId);
+      await setDoc(docRef, {
+        chatId,
+        userEmail: user?.primaryEmailAddress?.emailAddress,
+        messages,
+        lastUpdated: Date.now()
+      }, { merge: true });
+    } catch (err) {
+      console.error("Failed saving messages:", err);
+    }
+  };
 
-  const GetMessages=async()=>{
-    
-    const docRef = doc(db, "chatHistory", chatId);
-    const docSnap = await getDoc(docRef);
-    console.log(docSnap.data());
-    const docData = docSnap.data();
-    setMessages(docData.messages)
-  }
+  // Accept an optional id param; guard before calling doc(...)
+  const GetMessages = async (idParam) => {
+    const id = idParam ?? chatId;
+    if (!id) {
+      console.warn("GetMessages skipped: chatId is not set");
+      return;
+    }
+
+    try {
+      const docRef = doc(db, "chatHistory", id);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) {
+        setMessages({});
+        return;
+      }
+      const docData = docSnap.data() ?? {};
+      // Ensure messages is an object keyed by model names
+      setMessages(docData.messages ?? {});
+    } catch (err) {
+      console.error("Failed getting messages:", err);
+      setMessages({});
+    }
+  };
 
   return (
     <div className='relative min-h-screen'>
@@ -177,7 +213,7 @@ function ChatInputBox() {
             value={userInput}
             className="flex-grow p-2 border border-gray-300 dark:border-gray-700 rounded-l-md bg-white dark:bg-gray-900 text-black dark:text-white focus:outline-none"
             placeholder="Type your message..."
-            onChange={(event)=> setUserInput(event.target.value)}
+            onChange={(event) => setUserInput(event.target.value)}
           />
           
           <div className="ml-2 flex items-center space-x-2">
