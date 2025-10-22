@@ -19,8 +19,6 @@ import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { AiSelectedModelContext } from "@/context/AiSelectedModelContext";
 
-
-
 export function AppSidebar() {
   const { theme, setTheme } = useTheme();
   const { user } = useUser();
@@ -28,19 +26,17 @@ export function AppSidebar() {
   const [freeMsgCount, setFreeMsgCount] = useState(0);
   const { aiSelectedModels, setAiSelectedModels, messages, setMessages } = useContext(AiSelectedModelContext);
 
-  //const {has}=useAuth();
-  const paidUser=has({plan:'unlimted_plan'});
+  const { has } = useAuth();
 
   useEffect(() => {
     if (user) {
-     user && GetChatHistory();
-   
+      user && GetChatHistory();
     }
-  }, [user])
+  }, [user]);
 
-  useEffect(()=>{
+  useEffect(() => {
     GetRemainingTokenMsgs();
-  },[messages])
+  }, [messages]);
 
   const GetChatHistory = async () => {
     const q = query(
@@ -53,11 +49,11 @@ export function AppSidebar() {
     querySnapshot.forEach((doc) => {
       console.log(doc.id, " => ", doc.data());
       setChatHistory((prev) => [...prev, doc.data()]);
-    })
-  }
+    });
+  };
 
   const GetLastUserMessageFromChat = (chat) => {
-    const allMessages = Object.values(chat.messages).flat();
+    const allMessages = Object.values(chat.messages || {}).flat();
     const userMessages = allMessages.filter((msg) => msg.role === "user");
     const lastUserMessage =
       userMessages[userMessages.length - 1]?.content || "New Chat";
@@ -68,13 +64,24 @@ export function AppSidebar() {
       message: lastUserMessage,
       lastMsgDate: formattedDate,
     };
-  }
+  };
 
   const GetRemainingTokenMsgs = async () => {
-    const result = await axios.POST("/api/user-remaining-msgs");
-    console.log(result);
-    setFreeMsgCount(result?.data?.remainingToken);
-  }
+    try {
+      // use GET by default — change to post if your API expects a POST body
+      const result = await axios.get("/api/user-remaining-msgs");
+      setFreeMsgCount(result?.data?.remainingToken ?? 0);
+    } catch (err) {
+      // handle 404 (route missing) without crashing
+      if (err?.response?.status === 404) {
+        console.warn("/api/user-remaining-msgs returned 404 — ensure the API route exists");
+        setFreeMsgCount(0);
+        return;
+      }
+      console.error("Failed fetching remaining msgs:", err);
+      setFreeMsgCount(0);
+    }
+  };
 
   return (
     <Sidebar>
@@ -138,33 +145,33 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-          <SidebarFooter>
-            <div className="p-3 mb-10">
-              {!user ? (
-                <SignInButton mode="modal">
-                  <button className="w-full rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300">
-                    Sign In
-                  </button>
-                </SignInButton>
-              ) : (
-                <div>
-                  {!has({plan:'unlimted_plan'}) && <UsageCreditProgress remainingToken={freeMsgCount} />}
-                  <div>
-                    <PricingModal>
-                      <Button className="w-full mb-3">
-                        <Zap /> Upgrade Plan
-                      </Button>
-                    </PricingModal>
-                  </div>
-                  <Button className="w-full mb-3">
-                    <User2 /> <h2>Settings</h2>
-                  </Button>
-                </div>
-              )}
+      <SidebarFooter>
+        <div className="p-3 mb-10">
+          {!user ? (
+            <SignInButton mode="modal">
+              <button className="w-full rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300">
+                Sign In
+              </button>
+            </SignInButton>
+          ) : (
+            <div>
+              {!has({ plan: "unlimted_plan" }) && <UsageCreditProgress remainingToken={freeMsgCount} />}
+              <div>
+                {/* PricingModal was undefined — use Button directly */}
+                <Button className="w-full mb-3">
+                  <Zap /> Upgrade Plan
+                </Button>
+              </div>
+              <Button className="w-full mb-3">
+                <User2 /> <h2>Settings</h2>
+              </Button>
             </div>
-          </SidebarFooter>
-        </Sidebar>
-      );
-    }
-  
-        
+          )}
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
+
+export default AppSidebar;
+

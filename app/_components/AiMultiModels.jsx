@@ -26,8 +26,12 @@ function AiMultiModels() {
   const { user } = useUser();
   const [AiModelLists, setAiModelLists] = useState(AiModelList);
   const { aiSelectedModels, setAiSelectedModels, messages, setMessages } = useContext(AiSelectedModelContext);
- 
-  const {has}=useAuth();
+
+  const { has } = useAuth();
+  // guard against has not being a function (some auth providers don't expose `has`)
+  const hasFn = typeof has === 'function' ? has : () => false;
+  const paidUser = hasFn({ plan: 'unlimted_plan' });
+
 
   const onToggleChange = (model, value) => {
     setAiModelLists((prev) =>
@@ -45,9 +49,6 @@ function AiMultiModels() {
     }))
 
   }
-
-
-
 
   const onSelectValue = async (parentModel, value) => {
     setAiSelectedModels((prev) => ({
@@ -86,7 +87,7 @@ function AiMultiModels() {
                 height={24}
                 className='mr-2'
               />
-              {!has({plan:'unlimted_plan'}) && model.enabled && (
+              {!hasFn({plan:'unlimted_plan'}) && model.enabled && (
                 <Select defaultValue={aiSelectedModels?.[model.model]?.modelId ?? ''} onValueChange={(value) => onSelectValue(model.model, value)} >
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder={aiSelectedModels?.[model.model]?.modelId ?? ''} />
@@ -116,7 +117,7 @@ function AiMultiModels() {
               {model.enabled ? (
                 <Switch
                   checked={model.enabled}
-                  disabled={!has({plan:'unlimted_plan'}) && model.premium}
+                  disabled={!hasFn({plan:'unlimted_plan'}) && model.premium}
                   onCheckedChange={(checked) =>
                     onToggleChange(model.model, checked)
                   }
@@ -127,7 +128,7 @@ function AiMultiModels() {
             </div>
           </div>
 
-          {!has({plan:'unlimted_plan'}) && model.premium && model.enabled && (
+          {!hasFn({plan:'unlimted_plan'}) && model.premium && model.enabled && (
             
               <div className='items-center justify-center text-center text-sm text-gray-500 h-full'>
                 <button className='m-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50'>
@@ -137,7 +138,7 @@ function AiMultiModels() {
               </div>
 
           )}
-          {model.enable && aiSelectedModels[model.model]?.enable && (!model.premium || has({plan:'unlimted_plan'})) &&
+          {model.enable && aiSelectedModels[model.model]?.enable && (!model.premium || hasFn({plan:'unlimted_plan'})) &&
           
           <div className='flex-1 overflow-y-auto'>
             {/* Chat messages for this model */}
@@ -152,7 +153,7 @@ function AiMultiModels() {
                   )}
 
                     <div className="flex items-center space-x-2">
-                      {m.content == 'loading' && <><Loader className="animate-spin w-5 h-5" /></>}
+                      {m.content == 'loading' && <Loader className="animate-spin w-5 h-5" />}
                       {m?.content != 'loading' && 
                        m?.content && <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-full">
                           {m?.content}
@@ -160,29 +161,17 @@ function AiMultiModels() {
                       }
                     </div>
 
-                  <div className="flex items-center space-x-2">
-                    {m.content == 'loading' && <><Loader className="animate-spin w-5 h-5" /></>}
-                    {m.content != 'loading' && 
-                     m?.content&& <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-full">
-                        {m.content}
-                      </ReactMarkdown>
-                    }
-                  </div>
                 </div>
               ))}
             </div>
           </div>
          
-          )}
+          }
 
        </div>
-
       ))}
-
     </div>
-
   );
-
 }
 
 export default AiMultiModels;
