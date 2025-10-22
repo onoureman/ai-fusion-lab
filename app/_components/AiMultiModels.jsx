@@ -50,9 +50,6 @@ function AiMultiModels() {
 
   }
 
-
-
-
   const onSelectValue = async (parentModel, value) => {
     setAiSelectedModels((prev) => ({
       ...prev,
@@ -173,8 +170,8 @@ function AiMultiModels() {
 
        </div>
       ))}
-      </div>
-
-)};
+    </div>
+  );
+}
 
 export default AiMultiModels;
