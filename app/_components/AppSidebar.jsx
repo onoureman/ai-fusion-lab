@@ -28,8 +28,8 @@ export function AppSidebar() {
   const [freeMsgCount, setFreeMsgCount] = useState(0);
   const { aiSelectedModels, setAiSelectedModels, messages, setMessages } = useContext(AiSelectedModelContext);
 
-  //const {has}=useAuth();
-  const paidUser=has({plan:'unlimted_plan'});
+  const {has}=useAuth();
+  //const paidUser=has({plan:'unlimted_plan'});
 
   useEffect(() => {
     if (user) {

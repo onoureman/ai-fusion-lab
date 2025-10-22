@@ -197,4 +197,4 @@ function ChatInputBox() {
   );
 }
 
-export default ChatinputBox;
+export default ChatInputBox;

@@ -28,6 +28,7 @@ function AiMultiModels() {
   const { aiSelectedModels, setAiSelectedModels, messages, setMessages } = useContext(AiSelectedModelContext);
  
   const {has}=useAuth();
+  const paidUser=has({plan:'unlimted_plan'});
 
   const onToggleChange = (model, value) => {
     setAiModelLists((prev) =>
@@ -173,16 +174,15 @@ function AiMultiModels() {
             </div>
           </div>
          
-          )}
+          }
 
        </div>
-
       ))}
+      </div>
 
-    </div>
+)};
 
-  );
+  
 
-}
 
 export default AiMultiModels;
